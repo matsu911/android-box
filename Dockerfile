@@ -1,14 +1,33 @@
-FROM jacekmarchwicki/android:java7
-MAINTAINER Olivier Tabone <olivier.tabone@ripplemotion.fr>
+# based on https://registry.hub.docker.com/u/samtstern/android-sdk/dockerfile/ with openjdk-8
+FROM java:8
 
+MAINTAINER Shigeaki Matsumura <matsu911+github@gmail.com>
 
+ENV DEBIAN_FRONTEND noninteractive
 
-# Install sdk elements
-ADD android-update.exp /tmp/
+# Install dependencies
+RUN dpkg --add-architecture i386 && \
+    apt-get update && \
+    apt-get install -yq libc6:i386 libstdc++6:i386 zlib1g:i386 libncurses5:i386 --no-install-recommends && \
+    apt-get clean
 
-RUN set -x \
-   && expect -f /tmp/android-update.exp android-22,tool,platform-tool,build-tools-22,extra-android-support,platform-tools,tools,build-tools-22,addon-google_apis_x86-google-22,extra-android-support,extra-android-m2repository,extra-google-m2repository,sys-img-armeabi-v7a-android-22,sys-img-armeabi-x86-android-22
+# Download and untar SDK
+ENV ANDROID_SDK_URL http://dl.google.com/android/android-sdk_r24.1.2-linux.tgz
+RUN curl -L "${ANDROID_SDK_URL}" | tar --no-same-owner -xz -C /usr/local
+ENV ANDROID_HOME /usr/local/android-sdk-linux
+ENV ANDROID_SDK /usr/local/android-sdk-linux
+ENV PATH ${ANDROID_HOME}/tools:$ANDROID_HOME/platform-tools:$PATH
 
-RUN which adb
-RUN which android
+# Install Android SDK components
+ENV ANDROID_SDK_COMPONENTS platform-tools,build-tools-20.0.0,android-20,extra-android-m2repository,extra-google-m2repository,extra-google-google_play_services
+RUN echo y | android update sdk --no-ui --all --filter "${ANDROID_SDK_COMPONENTS}"
 
+# Install Gradle
+ADD https://services.gradle.org/distributions/gradle-2.2.1-bin.zip /usr/local/gradle-2.2.1-bin.zip
+RUN unzip /usr/local/gradle-2.2.1-bin.zip -d /usr/local/
+ENV GRADLE_HOME /usr/local/gradle-2.2.1
+ENV PATH $PATH:$GRADLE_HOME/bin
+
+# Support Gradle
+ENV TERM dumb
+ENV JAVA_OPTS -Xms256m -Xmx512m
